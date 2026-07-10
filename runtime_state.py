@@ -59,7 +59,7 @@ class QQBotRuntimeStateManager:
             await self._gateway.update_state(
                 gateway_name=self._name,
                 ready=True,
-                platform="qq",
+                platform="qq_bot",
                 account_id=normalized,
                 scope=config.connection_id,
                 metadata={"app_id": config.app_id, "sandbox": config.use_sandbox},
@@ -83,7 +83,7 @@ class QQBotRuntimeStateManager:
             await self._gateway.update_state(
                 gateway_name=self._name,
                 ready=False,
-                platform="qq",
+                platform="qq_bot",
             )
         except Exception as exc:
             self._logger.error("上报网关已断开失败: %s", exc)

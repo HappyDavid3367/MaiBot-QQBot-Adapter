@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any, Callable, Coroutine, Dict, Optional, Set
 
 import asyncio
+import base64
 import contextlib
 import json
 import time
@@ -320,6 +321,10 @@ class QQBotTransportClient:
         C2C: POST /v2/users/{openid}/files
         群:  POST /v2/groups/{group_openid}/files
 
+        请求体为 JSON，通过 ``file_data``（base64 字符串）直接上传本地二进制，
+        不传 ``url`` 字段（QQ 会用 file_data 生成富媒体资源）。上传成功后返回
+        ``file_info``，供发送接口 ``msg_type=7`` 的 ``media`` 字段使用。
+
         Args:
             file_type: 文件类型 (1=image, 2=video, 3=voice)。
             file_data: 文件二进制数据。
@@ -336,12 +341,12 @@ class QQBotTransportClient:
         else:
             url = f"{base_url}/v2/users/{target_openid}/files"
 
-        form = FormData()
-        form.add_field("file_type", str(file_type))
-        form.add_field("file", file_data, content_type="application/octet-stream")
-
-        headers = self._build_auth_header()
-        return await self._post_form(url, form, headers)
+        body: Dict[str, Any] = {
+            "file_type": file_type,
+            "file_data": base64.b64encode(file_data).decode("utf-8"),
+            "srv_send_msg": False,
+        }
+        return await self._post_json(url, body)
 
     def _get_rest_session(self) -> Any:
         """获取或创建 REST API 的 aiohttp session。"""
@@ -465,6 +470,7 @@ class QQBotTransportClient:
 
             if self._stop_requested:
                 break
+            self._logger.info("QQ Bot 将在 %.1f 秒后重连", config.reconnect_delay_sec)
             await asyncio.sleep(config.reconnect_delay_sec)
 
     async def _gateway_loop(self, ws: Any) -> str:
@@ -507,6 +513,10 @@ class QQBotTransportClient:
                 if s is not None:
                     self._last_received_seq = int(s)
 
+                self._logger.debug(
+                    "QQ Bot 收到帧: op=%s, t=%s, s=%s", op, t or "-", s
+                )
+
                 if op == OP_HELLO:
                     # 服务端下发心跳间隔 (毫秒)
                     if isinstance(d, dict):
@@ -544,6 +554,7 @@ class QQBotTransportClient:
 
                 elif op == OP_HEARTBEAT_ACK:
                     self._last_heartbeat_ack_at = time.time()
+                    self._logger.debug("QQ Bot 收到心跳 ACK (op=11)")
 
                 elif op == OP_RECONNECT:
                     self._logger.warning("QQ Bot 服务端要求重连 (op=7)，关闭当前连接重新握手")
@@ -552,6 +563,10 @@ class QQBotTransportClient:
                     break
 
                 elif op == OP_INVALID_SESSION:
+                    self._logger.warning(
+                        "QQ Bot 收到 op=9 Invalid Session 原始负载: %s",
+                        json.dumps(payload, ensure_ascii=False),
+                    )
                     # 读取 QQ 服务端返回的错误详情
                     code = 0
                     error_msg = ""
@@ -624,6 +639,17 @@ class QQBotTransportClient:
                 else:
                     self._logger.debug("未知 op=%d, t=%s", op, t)
 
+            # async for 自然结束：aiohttp 对 CLOSE/CLOSING/CLOSED 会抛 StopAsyncIteration，
+            # 这些帧不会进入上面的循环体，因此在这里补打服务端关连接时的 close_code。
+            # 仅当 reason 仍是初始值（未走任何显式 break）时才补充，避免覆盖 op=7/op=9 的原因。
+            if reason == "未知原因":
+                close_code = getattr(ws, "close_code", None)
+                self._logger.warning(
+                    "QQ Bot WSS 迭代结束（对端关闭）: close_code=%s, 收到过READY=%s, 最近received_seq=%s",
+                    close_code, self._connection_active, self._last_received_seq,
+                )
+                reason = f"对端关闭连接 (close_code={close_code}, ready={self._connection_active})"
+
         except asyncio.CancelledError:
             reason = "任务被取消"
         except Exception as exc:
@@ -671,6 +697,10 @@ class QQBotTransportClient:
             self._logger.error("Identify 前获取 token 失败: %s", exc)
             return
 
+        config = self._config
+        if config is None:
+            raise RuntimeError("QQ Bot 尚未配置")
+
         payload = {
             "op": OP_IDENTIFY,
             "d": {
@@ -686,6 +716,12 @@ class QQBotTransportClient:
         }
         self._logger.debug("发送 Identify (intents=%d, shard=[%d/%d])", config.intents, config.shard_index, config.shard_count)
         await self._send_json(payload)
+        self._logger.info(
+            "QQ Bot 已发送 Identify（access_token长度=%d, intents=%d, shard=[%d/%d], env=%s），等待 READY...",
+            len(self._access_token), config.intents,
+            config.shard_index, config.shard_count,
+            "沙箱" if config.use_sandbox else "生产",
+        )
 
     async def _send_resume(self) -> None:
         """发送 Resume (op=6)。

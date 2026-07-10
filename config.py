@@ -26,25 +26,33 @@ def _schema_i18n(
     *,
     label_en: str,
     label_ja: str,
+    label_ko: str,
     hint_en: Optional[str] = None,
     hint_ja: Optional[str] = None,
+    hint_ko: Optional[str] = None,
     placeholder_en: Optional[str] = None,
     placeholder_ja: Optional[str] = None,
+    placeholder_ko: Optional[str] = None,
 ) -> Dict[str, Dict[str, str]]:
     """构造 WebUI 配置项多语言说明，保留外层中文字段兼容旧格式。"""
 
     i18n: Dict[str, Dict[str, str]] = {
         "en_US": {"label": label_en},
         "ja_JP": {"label": label_ja},
+        "ko_KR": {"label": label_ko},
     }
     if hint_en is not None:
         i18n["en_US"]["hint"] = hint_en
     if hint_ja is not None:
         i18n["ja_JP"]["hint"] = hint_ja
+    if hint_ko is not None:
+        i18n["ko_KR"]["hint"] = hint_ko
     if placeholder_en is not None:
         i18n["en_US"]["placeholder"] = placeholder_en
     if placeholder_ja is not None:
         i18n["ja_JP"]["placeholder"] = placeholder_ja
+    if placeholder_ko is not None:
+        i18n["ko_KR"]["placeholder"] = placeholder_ko
     return i18n
 
 
@@ -65,8 +73,10 @@ class QQBotPluginOptions(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Enable adapter",
                 label_ja="アダプターを有効化",
+                label_ko="어댑터 활성화",
                 hint_en="When disabled, the plugin stays idle and will not open a QQ Bot WebSocket connection.",
                 hint_ja="無効にすると、プラグインは待機状態のままになり、QQ Bot WebSocket 接続を開始しません。",
+                hint_ko="비활성화하면 플러그인은 대기 상태로 유지되며 QQ Bot WebSocket 연결을 열지 않습니다.",
             ),
             "label": "启用适配器",
             "order": 0,
@@ -78,7 +88,7 @@ class QQBotPluginOptions(PluginConfigBase):
         json_schema_extra={
             "disabled": True,
             "hidden": True,
-            "i18n": _schema_i18n(label_en="Config version", label_ja="設定バージョン"),
+            "i18n": _schema_i18n(label_en="Config version", label_ja="設定バージョン", label_ko="설정 버전"),
             "label": "配置版本",
             "order": 99,
         },
@@ -117,10 +127,13 @@ class QQBotConnectionConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="App ID",
                 label_ja="App ID",
+                label_ko="App ID",
                 hint_en="Obtained from the QQ Open Platform after creating a bot application.",
                 hint_ja="QQ オープンプラットフォームで Bot アプリを作成した後に取得します。",
+                hint_ko="QQ 오픈 플랫폼에서 봇 애플리케이션을 생성한 후 획득합니다.",
                 placeholder_en="Your App ID",
                 placeholder_ja="あなたの App ID",
+                placeholder_ko="App ID를 입력하세요",
             ),
             "label": "App ID",
             "order": 0,
@@ -135,10 +148,13 @@ class QQBotConnectionConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="App Secret",
                 label_ja="App Secret",
+                label_ko="App Secret",
                 hint_en="The secret key corresponding to your App ID. Keep it safe.",
                 hint_ja="App ID に対応する秘密鍵です。安全に保管してください。",
+                hint_ko="App ID에 대응하는 비밀 키입니다. 안전하게 보관하세요.",
                 placeholder_en="Your App Secret",
                 placeholder_ja="あなたの App Secret",
+                placeholder_ko="App Secret을 입력하세요",
             ),
             "input_type": "password",
             "label": "App Secret",
@@ -154,8 +170,10 @@ class QQBotConnectionConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Use sandbox",
                 label_ja="サンドボックスを使用",
+                label_ko="샌드박스 사용",
                 hint_en="Sandbox environment for development and testing. Disable before going live.",
                 hint_ja="開発・テスト用のサンドボックス環境です。本番前に無効にしてください。",
+                hint_ko="개발 및 테스트용 샌드박스 환경입니다. 출시 전에 비활성화하세요.",
             ),
             "label": "使用沙箱环境",
             "order": 2,
@@ -169,8 +187,10 @@ class QQBotConnectionConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Intents",
                 label_ja="Intents",
+                label_ko="Intents",
                 hint_en="Default 33554432 = C2C messages + Group @ mentions. Full group messages require admin/active speaker permission.",
                 hint_ja="購読するイベントインテントのビットフィールドです。",
+                hint_ko="기본값 33554432 = C2C 메시지 + 그룹 @ 멘션. 전체 그룹 메시지는 관리자/능동 발언 권한이 필요합니다.",
             ),
             "label": "Intents",
             "order": 3,
@@ -184,8 +204,10 @@ class QQBotConnectionConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Shard count",
                 label_ja="シャード数",
+                label_ko="샤드 수",
                 hint_en="Total shard count for multi-instance deployment. Keep 1 for single instance.",
                 hint_ja="複数インスタンス展開時の総シャード数です。単一インスタンスでは 1 のままにします。",
+                hint_ko="다중 인스턴스 배포 시 총 샤드 수입니다. 단일 인스턴스에서는 1로 유지하세요.",
             ),
             "label": "分片总数",
             "order": 4,
@@ -199,8 +221,10 @@ class QQBotConnectionConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Shard index",
                 label_ja="シャードインデックス",
+                label_ko="샤드 인덱스",
                 hint_en="Current shard index for multi-instance deployment. Keep 0 for single instance.",
                 hint_ja="複数インスタンス展開時の現在のシャード番号です。単一インスタンスでは 0 のままにします。",
+                hint_ko="다중 인스턴스 배포 시 현재 샤드 번호입니다. 단일 인스턴스에서는 0으로 유지하세요.",
             ),
             "label": "分片序号",
             "order": 5,
@@ -214,8 +238,10 @@ class QQBotConnectionConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Heartbeat interval (sec)",
                 label_ja="ハートビート間隔（秒）",
+                label_ko="하트비트 간격(초)",
                 hint_en="Used to detect whether the QQ Bot WSS connection is stale. Must be greater than 0.",
                 hint_ja="QQ Bot WSS 接続が失活していないかを判定する間隔です。0 より大きい値にしてください。",
+                hint_ko="QQ Bot WSS 연결이 끊겼는지 판정하는 데 사용됩니다. 0보다 커야 합니다.",
             ),
             "label": "心跳间隔（秒）",
             "order": 6,
@@ -230,8 +256,10 @@ class QQBotConnectionConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Reconnect delay (sec)",
                 label_ja="再接続待機（秒）",
+                label_ko="재연결 대기(초)",
                 hint_en="After a disconnect, wait this long before trying to reconnect.",
                 hint_ja="接続が切断された後、再接続を試すまでこの時間待機します。",
+                hint_ko="연결이 끊긴 후 재연결을 시도하기 전에 이 시간만큼 대기합니다.",
             ),
             "label": "重连等待（秒）",
             "order": 7,
@@ -246,8 +274,10 @@ class QQBotConnectionConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Action timeout (sec)",
                 label_ja="アクションタイムアウト（秒）",
+                label_ko="액션 타임아웃(초)",
                 hint_en="Actions such as sending messages or uploading files fail after this timeout.",
                 hint_ja="メッセージ送信やファイルアップロードなどのアクションは、この時間を超えるとエラーになります。",
+                hint_ko="메시지 전송이나 파일 업로드 같은 작업은 이 시간을 초과하면 실패합니다.",
             ),
             "label": "动作超时（秒）",
             "order": 8,
@@ -262,8 +292,10 @@ class QQBotConnectionConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Token refresh before expiry (sec)",
                 label_ja="トークン期限前リフレッシュ（秒）",
+                label_ko="토큰 사전 갱신(초)",
                 hint_en="access_token expires in 7200s. Default refreshes 5 min before expiry.",
                 hint_ja="access_token の有効期限は 7200 秒です。デフォルトで期限の 5 分前にリフレッシュします。",
+                hint_ko="access_token의 유효 기간은 7200초입니다. 기본적으로 만료 5분 전에 갱신합니다.",
             ),
             "label": "Token 提前刷新（秒）",
             "order": 9,
@@ -278,10 +310,13 @@ class QQBotConnectionConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Connection ID",
                 label_ja="接続識別子",
+                label_ko="연결 식별자",
                 hint_en="When multiple QQ Bot connections exist, use this as the routing scope identifier.",
                 hint_ja="複数の QQ Bot 接続がある場合、ルーティングスコープの識別子として使用できます。",
+                hint_ko="여러 QQ Bot 연결이 있을 때 라우팅 스코프 식별자로 사용합니다.",
                 placeholder_en="For example: primary",
                 placeholder_ja="例：primary",
+                placeholder_ko="예: primary",
             ),
             "label": "连接标识",
             "order": 10,
@@ -350,8 +385,10 @@ class QQBotChatConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Enable chat list filter",
                 label_ja="チャットリストフィルターを有効化",
+                label_ko="채팅 목록 필터 활성화",
                 hint_en="When disabled, group and private lists are ignored; only globally banned users remain.",
                 hint_ja="無効にすると、グループ/個人チャットのリストを無視し、全体のブロックユーザーのみを適用します。",
+                hint_ko="비활성화하면 그룹/개인 채팅 목록을 무시하고 전역 차단 사용자만 적용합니다.",
             ),
             "label": "启用聊天名单过滤",
             "order": 0,
@@ -365,8 +402,10 @@ class QQBotChatConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Show dropped chat-list logs",
                 label_ja="チャットリストで破棄されたログを表示",
+                label_ko="목록에서 버려진 로그 표시",
                 hint_en="When disabled, dropped group/private chat-list logs are not recorded. Default off to reduce log noise.",
                 hint_ja="無効にすると、チャットリストで破棄されたグループ/個人チャットのログを記録しません。ログの増加を抑えるため既定ではオフです。",
+                hint_ko="비활성화하면 채팅 목록 필터로 버려진 그룹/개인 채팅 로그를 기록하지 않습니다. 로그 폭주를 줄이기 위해 기본값은 꺼짐입니다.",
             ),
             "label": "显示聊天名单丢弃日志",
             "order": 1,
@@ -380,8 +419,10 @@ class QQBotChatConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Group list mode",
                 label_ja="グループリストモード",
+                label_ko="그룹 목록 모드",
                 hint_en="Whitelist mode only accepts listed groups; blacklist mode ignores listed groups.",
                 hint_ja="ホワイトリストではリスト内のグループのみ受信し、ブラックリストではリスト内のグループを無視します。",
+                hint_ko="화이트리스트 모드는 목록의 그룹만 수신하고, 블랙리스트 모드는 목록의 그룹을 무시합니다.",
             ),
             "label": "群聊名单模式",
             "order": 2,
@@ -395,10 +436,13 @@ class QQBotChatConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Group list",
                 label_ja="グループリスト",
+                label_ko="그룹 목록",
                 hint_en="Group openids are normalized to strings and deduplicated automatically.",
                 hint_ja="グループ openid は文字列に正規化され、自動的に重複排除されます。",
+                hint_ko="그룹 openid는 문자열로 정규화되고 자동으로 중복 제거됩니다.",
                 placeholder_en="Enter group_openid",
                 placeholder_ja="group_openid を入力",
+                placeholder_ko="group_openid를 입력하세요",
             ),
             "label": "群聊名单",
             "order": 3,
@@ -413,8 +457,10 @@ class QQBotChatConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Private list mode",
                 label_ja="個人チャットリストモード",
+                label_ko="개인 채팅 목록 모드",
                 hint_en="Whitelist mode only accepts listed private chats; blacklist mode ignores listed private chats.",
                 hint_ja="ホワイトリストではリスト内の個人チャットのみ受信し、ブラックリストではリスト内の個人チャットを無視します。",
+                hint_ko="화이트리스트 모드는 목록의 개인 채팅만 수신하고, 블랙리스트 모드는 목록의 개인 채팅을 무시합니다.",
             ),
             "label": "私聊名单模式",
             "order": 4,
@@ -428,10 +474,13 @@ class QQBotChatConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Private list",
                 label_ja="個人チャットリスト",
+                label_ko="개인 채팅 목록",
                 hint_en="User openids are normalized to strings and deduplicated automatically.",
                 hint_ja="ユーザー openid は文字列に正規化され、自動的に重複排除されます。",
+                hint_ko="사용자 openid는 문자열로 정규화되고 자동으로 중복 제거됩니다.",
                 placeholder_en="Enter user_openid",
                 placeholder_ja="user_openid を入力",
+                placeholder_ko="user_openid를 입력하세요",
             ),
             "label": "私聊名单",
             "order": 5,
@@ -446,8 +495,10 @@ class QQBotChatConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Globally blocked users",
                 label_ja="全体ブロックユーザー",
+                label_ko="전역 차단 사용자",
                 hint_en="Messages from these users are dropped before entering the Host.",
                 hint_ja="これらのユーザーからのメッセージは Host に入る前に破棄されます。",
+                hint_ko="이 사용자들의 메시지는 Host에 들어가기 전에 버려집니다.",
             ),
             "label": "全局屏蔽用户",
             "order": 6,
@@ -462,8 +513,10 @@ class QQBotChatConfig(PluginConfigBase):
             "i18n": _schema_i18n(
                 label_en="Block official bots",
                 label_ja="公式 Bot をブロック",
+                label_ko="공식 봇 차단",
                 hint_en="When enabled, messages from QQ official bots or channel bots are ignored.",
                 hint_ja="有効にすると、QQ 公式 Bot またはチャンネル Bot からのメッセージを無視します。",
+                hint_ko="활성화하면 QQ 공식 봇 또는 채널 봇의 메시지를 무시합니다.",
             ),
             "label": "屏蔽官方机器人",
             "order": 7,

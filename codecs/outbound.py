@@ -4,9 +4,9 @@
 
 当前消息段转换规则：
 - ``text`` → msg_type=0, content=纯文本
-- ``image`` → 先上传再 msg_type=7 (media)
+- ``image`` / ``emoji`` → 先上传再 msg_type=7 (media)
 - ``at`` → 转为 ``@名称`` 文本
-- ``reply`` → 提取 msg_id，同时写入 ``[reply]`` 文本标记
+- ``reply`` → 仅提取 msg_id 实现引用，不在正文写入 ``[reply]`` 标记
 - ``voice`` → 写入 ``[语音]`` 文本标记
 - ``forward`` → 转为文本提示
 """
@@ -126,9 +126,10 @@ class QQBotOutboundCodec:
 
         规则:
         - ``text`` → 拼入 text_content
-        - ``image`` → 加入 media list（base64 + content_type）
+        - ``image`` / ``emoji`` → 加入 media list（base64 + content_type）
         - ``at`` → 转为 ``@名称`` 文本
-        - ``reply``、``forward`` → 转为文本标记
+        - ``reply`` → 仅提取 msg_id（见 _extract_reply_msg_id），不拼入正文
+        - ``forward`` → 转为文本标记
         - ``voice``、``file`` → 转为文本标记
 
         Args:
@@ -149,7 +150,8 @@ class QQBotOutboundCodec:
             if item_type == "text":
                 text_parts.append(str(item_data or ""))
 
-            elif item_type == "image":
+            elif item_type in ("image", "emoji"):
+                # emoji（表情包）本质是图片文件，与 image 一样走上传→media 路径。
                 binary_b64 = str(item.get("binary_data_base64") or "").strip()
                 content_type = str(item.get("mime_type") or "image/png").strip()
                 if binary_b64:
@@ -169,9 +171,14 @@ class QQBotOutboundCodec:
                     if name:
                         text_parts.append(f"@{name}")
 
-            elif item_type in ("reply", "forward"):
-                # reply 的 msg_id 由 _extract_reply_msg_id 提取；两个段均保留文本标记。
-                text_parts.append(f"[{item_type}]")
+            elif item_type == "forward":
+                # QQ 官方 API 发不了合并转发，退化为文本提示。
+                text_parts.append("[forward]")
+
+            elif item_type == "reply":
+                # reply 段仅用于提取被引用消息 ID（见 _extract_reply_msg_id），
+                # 引用效果由 API 的 msg_id 参数体现，不应再把 [reply] 字样拼进正文。
+                continue
 
             elif item_type == "voice":
                 # 当前实现将语音段转换为文本标记。

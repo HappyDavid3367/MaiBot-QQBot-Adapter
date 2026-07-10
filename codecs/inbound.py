@@ -10,10 +10,22 @@
 from __future__ import annotations
 
 from datetime import datetime
+import asyncio
+import base64
+import hashlib
 import json
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from uuid import uuid4
+
+try:
+    from aiohttp import ClientSession, ClientTimeout
+
+    AIOHTTP_AVAILABLE = True
+except ImportError:
+    ClientSession = None
+    ClientTimeout = None
+    AIOHTTP_AVAILABLE = False
 
 
 class QQBotInboundCodec:
@@ -70,7 +82,7 @@ class QQBotInboundCodec:
         user_openid = str(author.get("user_openid") or "").strip()
         username = str(author.get("username") or "").strip() or user_openid
 
-        raw_message = self._parse_content_and_attachments(data)
+        raw_message = await self._parse_content_and_attachments(data)
 
         plain_text = self._build_plain_text(raw_message)
         timestamp = self._parse_timestamp(data.get("timestamp"))
@@ -93,7 +105,7 @@ class QQBotInboundCodec:
         return {
             "message_id": msg_id,
             "timestamp": str(float(timestamp)),
-            "platform": "qq",
+            "platform": "qq_bot",
             "message_info": message_info,
             "raw_message": raw_message,
             "is_mentioned": False,
@@ -130,7 +142,7 @@ class QQBotInboundCodec:
 
         group_openid = str(data.get("group_openid") or data.get("group_id") or "").strip()
 
-        raw_message = self._parse_content_and_attachments(data)
+        raw_message = await self._parse_content_and_attachments(data)
 
         plain_text = self._build_plain_text(raw_message)
         timestamp = self._parse_timestamp(data.get("timestamp"))
@@ -161,7 +173,7 @@ class QQBotInboundCodec:
         return {
             "message_id": msg_id,
             "timestamp": str(float(timestamp)),
-            "platform": "qq",
+            "platform": "qq_bot",
             "message_info": message_info,
             "raw_message": raw_message,
             "is_mentioned": is_at,
@@ -183,7 +195,7 @@ class QQBotInboundCodec:
         return {
             "message_id": msg_id,
             "timestamp": str(time.time()),
-            "platform": "qq",
+            "platform": "qq_bot",
             "message_info": {
                 "user_info": {"user_id": "unknown", "user_nickname": "unknown"},
                 "additional_config": {"self_id": self_id},
@@ -202,12 +214,17 @@ class QQBotInboundCodec:
 
     # -- 内容解析 --
 
-    def _parse_content_and_attachments(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    async def _parse_content_and_attachments(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """解析 QQ Bot 事件的 content 和 attachments 为 MaiBot 消息段。
 
         QQ Bot API 中:
         - ``content`` 字段为纯文本字符串
         - ``attachments`` 为附件数组，包含 content_type, url 等
+
+        图片附件会**立即下载**二进制并计算 sha256 + base64 填入消息段，
+        与 NapCat 适配器保持一致（Host 按 image_hash 从图片库加载二进制，
+        不会主动去抓 URL）。QQ 多媒体 URL 携带限时 rkey，必须在收到事件的
+        当下同步下载，晚了 rkey 会失效。
 
         Args:
             data: 事件 payload。
@@ -229,24 +246,93 @@ class QQBotInboundCodec:
                 if not isinstance(att, dict):
                     continue
                 att_type = str(att.get("content_type") or "").lower()
-                att_url = str(att.get("url") or "").strip()
+                att_url = self._normalize_url(str(att.get("url") or "").strip())
 
                 if att_type.startswith("image/"):
-                    # 当前实现仅将 QQ Bot 附件 URL 写入图片消息段。
-                    result.append(
-                        {
-                            "type": "image",
-                            "data": att_url,
-                            "hash": "",
-                            "binary_data_base64": "",
-                        }
-                    )
+                    result.append(await self._build_image_segment(att_url))
                 else:
                     # 未知附件类型 → 文本降级
                     filename = att.get("filename", "attachment")
                     result.append({"type": "text", "data": f"[附件: {filename}]"})
 
         return result
+
+    async def _build_image_segment(self, url: str) -> Dict[str, Any]:
+        """下载 QQ 图片附件并构造图片消息段。
+
+        下载成功 → ``{type:image, data:"", hash:sha256, binary_data_base64:...}``
+        下载失败 → 退化为 ``[图片]`` 文本段（不丢整条消息）。
+
+        Args:
+            url: 图片附件 URL（已补全协议头）。
+
+        Returns:
+            Dict[str, Any]: 图片消息段或文本降级段。
+        """
+        binary_data = await self._download_binary(url)
+        if not binary_data:
+            self._logger.warning("QQ Bot 图片下载失败，退化为文本占位: %s", url)
+            return {"type": "text", "data": "[图片]"}
+
+        return {
+            "type": "image",
+            "data": "",
+            "hash": hashlib.sha256(binary_data).hexdigest(),
+            "binary_data_base64": base64.b64encode(binary_data).decode("utf-8"),
+        }
+
+    async def _download_binary(self, url: str) -> Optional[bytes]:
+        """下载远程二进制资源（图片等）。
+
+        使用独立的裸 ``ClientSession``，**不携带任何 QQBot 鉴权头**——
+        QQ 多媒体 CDN（multimedia.nt.qq.com.cn）通过 URL 中的 rkey 鉴权，
+        附带 Authorization 反而会失败。
+
+        Args:
+            url: 资源 URL。
+
+        Returns:
+            Optional[bytes]: 下载到的二进制内容；失败时返回 ``None``。
+        """
+        if not url:
+            return None
+        if not AIOHTTP_AVAILABLE or ClientSession is None or ClientTimeout is None:
+            self._logger.warning("QQ Bot 入站编解码缺少 aiohttp，无法下载图片")
+            return None
+
+        try:
+            timeout = ClientTimeout(total=15)
+            async with ClientSession(timeout=timeout) as session:
+                async with session.get(url) as response:
+                    if response.status != 200:
+                        self._logger.warning(
+                            "QQ Bot 图片下载失败: status=%d url=%s", response.status, url,
+                        )
+                        return None
+                    return await response.read()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            self._logger.warning("QQ Bot 图片下载异常: %s (url=%s)", exc, url)
+            return None
+
+    @staticmethod
+    def _normalize_url(url: str) -> str:
+        """补全缺失的协议头。
+
+        QQ Bot v2 事件中的 ``attachments[].url`` 常常是裸域名（无 https:// 前缀）。
+
+        Args:
+            url: 原始 URL。
+
+        Returns:
+            str: 补全协议头后的 URL。
+        """
+        if not url:
+            return url
+        if url.startswith("http://") or url.startswith("https://"):
+            return url
+        return f"https://{url}"
 
     # -- 辅助函数 --
 

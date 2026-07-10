@@ -80,7 +80,7 @@ class QQBotAdapterPlugin(MaiBotPlugin):
     @MessageGateway(
         name=QQBOT_GATEWAY_NAME,
         route_type="duplex",
-        platform="qq",
+        platform="qq_bot",
         protocol="qq_official",
         description="QQ 官方 Bot WebSocket 双工消息网关",
     )

@@ -43,8 +43,9 @@ OP_RECONNECT = 7            # 服务端要求重连
 OP_INVALID_SESSION = 9      # 鉴权/恢复失败 (d 字段含 code 说明原因)
 OP_HELLO = 10               # 建连后首条消息 (心跳周期, ms)
 OP_HEARTBEAT_ACK = 11       # 心跳回复
-OP_HTTP_CALLBACK_ACK = 12   # [仅 webhook] HTTP 回调回包
-OP_CALLBACK_VALIDATION = 13 # [仅 webhook] 回调地址验证
+
+# OP_HTTP_CALLBACK_ACK = 12   # [仅 webhook] HTTP 回调回包
+# OP_CALLBACK_VALIDATION = 13 # [仅 webhook] 回调地址验证
 
 # -- WSS 错误码 (op=9 时 d.code) --
 # 官方参考: https://bot.q.qq.com/wiki/develop/api-v2/dev-prepare/error-trace/websocket.html
