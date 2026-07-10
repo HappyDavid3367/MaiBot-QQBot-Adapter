@@ -1,0 +1,19 @@
+# 本地运行配置及其备份
+config.toml
+config_back/
+
+# 本地抓取的参考资料
+docs/
+
+# Python 运行产物
+__pycache__/
+*.py[cod]
+
+# AI 编程工具的本地工作目录
+.aider/
+.claude/
+.codex/
+.continue/
+.cursor/
+.roo/
+.windsurf/

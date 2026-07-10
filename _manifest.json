@@ -1,0 +1,39 @@
+{
+  "manifest_version": 2,
+  "id": "galeros.qqbot-adapter",
+  "version": "0.1.0",
+  "name": "QQBot 适配器 / QQBot Adapter",
+  "description": "QQ 官方机器人适配器，通过 QQ Bot API (WebSocket + REST) 连接 QQ 开放平台。",
+  "author": {
+    "name": "mayan613",
+    "url": "https://github.com/mayan613"
+  },
+  "license": "GPL-3.0",
+  "urls": {
+    "repository": "https://github.com/mayan613/MaiBot-QQBot-Adapter",
+    "homepage": "https://github.com/mayan613/MaiBot-QQBot-Adapter",
+    "documentation": "https://www.galeros.xyz/2026/07/07/qqbot-adapter",
+    "issues": "https://github.com/mayan613/MaiBot-QQBot-Adapter/issues"
+  },
+  "host_application": {
+    "min_version": "1.0.0",
+    "max_version": "1.99.99"
+  },
+  "sdk": {
+    "min_version": "2.0.0",
+    "max_version": "2.99.99"
+  },
+  "dependencies": [],
+  "plugin_type": "adapter",
+  "display": {
+    "icon": {
+      "type": "lucide",
+      "value": "message-circle"
+    }
+  },
+  "capabilities": [],
+  "i18n": {
+    "default_locale": "zh-CN",
+    "supported_locales": ["zh-CN", "en-US", "ja_JP", "ko_KR"]
+  }
+}
