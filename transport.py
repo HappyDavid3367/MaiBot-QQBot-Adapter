@@ -1,11 +1,14 @@
-"""QQ Bot WebSocket + REST 传输层。
+"""
+QQ Bot WebSocket + REST 传输层
 
 QQ Bot API 分为两个通道:
-- **WebSocket (WSS)**: 接收事件推送 (Dispatch)、维持心跳 (Heartbeat/ACK)、
-  鉴权 (Identify)、断线重连 (Resume)
-- **REST API (HTTPS)**: 发送消息、上传媒体等出站操作
+WebSocket (WSS): 接收事件推送 (Dispatch)、维持心跳 (Heartbeat/ACK)、鉴权 (Identify)、断线重连 (Resume)
+REST API (HTTPS): 发送消息、上传媒体等出站操作
 
-本模块的 ``QQBotTransportClient`` 同时管理这两个通道。
+本模块的 QQBotTransportClient 同时管理这两个通道。
+
+Made BY Galeros
+
 """
 
 from __future__ import annotations
@@ -19,13 +22,12 @@ import json
 import time
 
 try:
-    from aiohttp import ClientSession, ClientTimeout, FormData, WSMsgType
+    from aiohttp import ClientSession, ClientTimeout, WSMsgType
 
     AIOHTTP_AVAILABLE = True
 except ImportError:
     ClientSession = None
     ClientTimeout = None
-    FormData = None
     WSMsgType = None
     AIOHTTP_AVAILABLE = False
 
@@ -57,20 +59,21 @@ from .constants import (
     WSS_ERR_BOT_BANNED,
 )
 
-# 心跳默认值 (QQ 文档典型值 41250ms)
+# 心跳默认值
 _DEFAULT_HEARTBEAT_MS = 41250
 # Rate limit 重试最大次数
 _MAX_RATE_LIMIT_RETRIES = 3
 
 
 class QQBotTransportClient:
-    """QQ Bot WebSocket 客户端 + REST API 客户端。
+    """QQ Bot WebSocket 客户端 + REST API 客户端
 
     连接生命周期:
     1. WSS 连接 -> Hello(op=10) -> Identify(op=2) -> Ready(Dispatch)
     2. 心跳循环 (op=1/11)
     3. Dispatch 事件 -> 回调 on_dispatch
     4. 断开 -> 自动重连 (Resume 优先)
+
     """
 
     def __init__(
@@ -80,13 +83,14 @@ class QQBotTransportClient:
         on_connection_closed: Callable[[], Coroutine[Any, Any, None]],
         on_dispatch: Callable[[Dict[str, Any], str], Coroutine[Any, Any, None]],
     ) -> None:
-        """初始化传输客户端。
+        """初始化传输客户端
 
         Args:
             logger: 插件日志对象。
             on_connection_opened: WSS 鉴权完成后的回调。
             on_connection_closed: WSS 断开后的回调。
             on_dispatch: 收到 Dispatch 事件时的回调 ``(event_data, event_type)``。
+
         """
         self._logger = logger
         self._on_connection_opened = on_connection_opened
@@ -125,21 +129,22 @@ class QQBotTransportClient:
 
     @classmethod
     def is_available(cls) -> bool:
-        """判断当前环境是否安装了 ``aiohttp``。"""
+        """判断当前环境是否安装了 aiohttp """
         return AIOHTTP_AVAILABLE
 
     # -- 配置 & 启动 --
 
     def configure(self, config: QQBotConnectionConfig) -> None:
-        """更新传输层配置。
+        """更新传输层配置
 
         Args:
-            config: QQ Bot 连接配置。
+            config: QQ Bot 连接配置
+        
         """
         self._config = config
 
     async def start(self) -> None:
-        """启动 WSS 连接循环。"""
+        """启动 WSS 连接循环"""
         if not self.is_available():
             raise RuntimeError("QQ Bot 适配器依赖 aiohttp，当前环境未安装")
         if self._config is None:
@@ -153,7 +158,7 @@ class QQBotTransportClient:
         )
 
     async def stop(self) -> None:
-        """停止连接并清理所有资源。"""
+        """停止连接并清理所有资源"""
         self._stop_requested = True
         connection_task = self._connection_task
         self._connection_task = None
@@ -321,10 +326,6 @@ class QQBotTransportClient:
         C2C: POST /v2/users/{openid}/files
         群:  POST /v2/groups/{group_openid}/files
 
-        请求体为 JSON，通过 ``file_data``（base64 字符串）直接上传本地二进制，
-        不传 ``url`` 字段（QQ 会用 file_data 生成富媒体资源）。上传成功后返回
-        ``file_info``，供发送接口 ``msg_type=7`` 的 ``media`` 字段使用。
-
         Args:
             file_type: 文件类型 (1=image, 2=video, 3=voice)。
             file_data: 文件二进制数据。
@@ -392,42 +393,6 @@ class QQBotTransportClient:
                 return data
 
             self._logger.error("QQ Bot API 错误 (%d): %s", resp.status, data)
-            return {"success": False, "error": str(data), "status_code": resp.status}
-
-        return {"success": False, "error": "Max retries exceeded"}
-
-    async def _post_form(self, url: str, form: Any, headers: Dict[str, str]) -> Dict[str, Any]:
-        """发送 multipart/form-data POST 请求。"""
-        for attempt in range(1 + _MAX_RATE_LIMIT_RETRIES):
-            try:
-                async with self._get_rest_session() as session:
-                    async with session.post(
-                        url,
-                        data=form,
-                        headers=headers,
-                        timeout=ClientTimeout(total=self._config.action_timeout_sec if self._config else 15),
-                    ) as resp:
-                        data = await resp.json()
-            except Exception as exc:
-                if attempt < _MAX_RATE_LIMIT_RETRIES:
-                    await asyncio.sleep(2 ** attempt)
-                    continue
-                return {"success": False, "error": str(exc)}
-
-            if resp.status == 429:
-                retry_after = float(resp.headers.get("Retry-After", 2 ** attempt))
-                if attempt < _MAX_RATE_LIMIT_RETRIES:
-                    await asyncio.sleep(retry_after)
-                    continue
-
-            if 200 <= resp.status < 300:
-                return data
-
-            if resp.status >= 500 and attempt < _MAX_RATE_LIMIT_RETRIES:
-                await asyncio.sleep(2 ** attempt)
-                continue
-
-            self._logger.error("QQ Bot API 上传错误 (%d): %s", resp.status, data)
             return {"success": False, "error": str(data), "status_code": resp.status}
 
         return {"success": False, "error": "Max retries exceeded"}

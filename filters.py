@@ -1,4 +1,9 @@
-"""QQ Bot 入站消息过滤器。"""
+"""
+QQ Bot 入站消息过滤器
+
+Made BY Galeros
+
+"""
 
 from __future__ import annotations
 
@@ -10,11 +15,12 @@ from .config import QQBotChatConfig
 class QQBotChatFilter:
     """QQ Bot 聊天名单过滤器。
 
-    直接参考 NapCat 同名过滤器的逻辑:
+    过滤器逻辑:
     - 全局屏蔽用户 (ban_user_id)
     - 群聊白名单/黑名单
     - 私聊白名单/黑名单
     - 可选的过滤开关
+
     """
 
     def __init__(self, logger: Any) -> None:

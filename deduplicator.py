@@ -1,9 +1,13 @@
-"""QQ Bot 消息去重器。
+"""
+QQ Bot 消息去重器
 
 策略:
-1. 以 ``msg_id`` 为主键。若 msg_id 已见过，直接丢弃。
-2. ``msg_seq`` 用于辅助判断: 若 msg_seq <= 同会话已记录的最大 seq，判定为重放。
-3. 使用 TTL 驱逐过期条目，防止内存泄漏。
+1.以 msg_id 为主键。若 msg_id 已见过，直接丢弃。
+2. msg_seq 用于辅助判断: 若 msg_seq <= 同会话已记录的最大 seq,判定为重放。
+3.使用 TTL 驱逐过期条目，防止内存泄漏。
+
+Made BY Galeros
+
 """
 
 from __future__ import annotations

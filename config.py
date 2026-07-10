@@ -1,4 +1,9 @@
-"""QQ Bot 适配器配置模型。"""
+"""
+QQ Bot 适配器配置模型。
+
+Made BY Galeros
+
+"""
 
 from __future__ import annotations
 

@@ -1,10 +1,14 @@
-"""QQ Bot 入站消息编解码。
+"""
+QQ Bot 入站消息编解码
 
-将 QQ Bot WebSocket Dispatch 事件转换为 Host 侧 ``MessageDict``。
+将 QQ Bot WebSocket Dispatch 事件转换为 Host 侧 MessageDict
 支持的事件类型:
-- ``C2C_MESSAGE_CREATE`` — 私聊消息
-- ``GROUP_AT_MESSAGE_CREATE`` — 群聊 @ 消息
-- ``GROUP_MESSAGE_CREATE`` — 群聊全量消息（需 bot 为管理员或有主动消息状态）
+C2C_MESSAGE_CREATE — 私聊消息
+GROUP_AT_MESSAGE_CREATE — 群聊 @ 消息
+GROUP_MESSAGE_CREATE — 群聊全量消息
+
+Made BY Galeros
+
 """
 
 from __future__ import annotations
@@ -221,11 +225,6 @@ class QQBotInboundCodec:
         - ``content`` 字段为纯文本字符串
         - ``attachments`` 为附件数组，包含 content_type, url 等
 
-        图片附件会**立即下载**二进制并计算 sha256 + base64 填入消息段，
-        与 NapCat 适配器保持一致（Host 按 image_hash 从图片库加载二进制，
-        不会主动去抓 URL）。QQ 多媒体 URL 携带限时 rkey，必须在收到事件的
-        当下同步下载，晚了 rkey 会失效。
-
         Args:
             data: 事件 payload。
 
@@ -261,7 +260,7 @@ class QQBotInboundCodec:
         """下载 QQ 图片附件并构造图片消息段。
 
         下载成功 → ``{type:image, data:"", hash:sha256, binary_data_base64:...}``
-        下载失败 → 退化为 ``[图片]`` 文本段（不丢整条消息）。
+        下载失败 → 退化为 ``[图片]`` 文本段。
 
         Args:
             url: 图片附件 URL（已补全协议头）。
@@ -283,10 +282,6 @@ class QQBotInboundCodec:
 
     async def _download_binary(self, url: str) -> Optional[bytes]:
         """下载远程二进制资源（图片等）。
-
-        使用独立的裸 ``ClientSession``，**不携带任何 QQBot 鉴权头**——
-        QQ 多媒体 CDN（multimedia.nt.qq.com.cn）通过 URL 中的 rkey 鉴权，
-        附带 Authorization 反而会失败。
 
         Args:
             url: 资源 URL。
@@ -320,7 +315,7 @@ class QQBotInboundCodec:
     def _normalize_url(url: str) -> str:
         """补全缺失的协议头。
 
-        QQ Bot v2 事件中的 ``attachments[].url`` 常常是裸域名（无 https:// 前缀）。
+        以防万一呢 :3
 
         Args:
             url: 原始 URL。

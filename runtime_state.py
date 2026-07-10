@@ -1,7 +1,10 @@
-"""QQ Bot 网关运行时状态管理。
+"""
+QQ Bot 网关运行时状态管理
 
-通过 ``self.ctx.gateway.update_state`` 向 Host 上报连接状态，
-使 PlatformIO 可以绑定发送路由和接收路由。
+通过 self.ctx.gateway.update_state 向 Host 上报连接状态，使 PlatformIO 可以绑定发送路由和接收路由。
+
+Made BY Galeros
+
 """
 
 from __future__ import annotations

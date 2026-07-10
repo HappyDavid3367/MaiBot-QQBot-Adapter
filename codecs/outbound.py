@@ -1,14 +1,18 @@
-"""QQ Bot 出站消息编解码。
+"""
+QQ Bot 出站消息编解码
 
-将 Host 侧 ``MessageDict`` 转换为 QQ Bot REST API 动作参数。
+将 Host 侧 MessageDict 转换为 QQ Bot REST API 动作参数
 
 当前消息段转换规则：
-- ``text`` → msg_type=0, content=纯文本
-- ``image`` / ``emoji`` → 先上传再 msg_type=7 (media)
-- ``at`` → 转为 ``@名称`` 文本
-- ``reply`` → 仅提取 msg_id 实现引用，不在正文写入 ``[reply]`` 标记
-- ``voice`` → 写入 ``[语音]`` 文本标记
-- ``forward`` → 转为文本提示
+text - msg_type=0, content=纯文本
+image/emoji - 先上传再 msg_type=7 (media)
+at - 转为 @名称 文本
+reply - 提取 msg_id 实现引用
+voice - 写入 [语音] 文本标记
+forward - 转为文本提示
+
+Made BY Galeros
+
 """
 
 from __future__ import annotations
@@ -124,14 +128,6 @@ class QQBotOutboundCodec:
     ) -> Tuple[str, List[Dict[str, Any]]]:
         """分离文本内容和媒体段。
 
-        规则:
-        - ``text`` → 拼入 text_content
-        - ``image`` / ``emoji`` → 加入 media list（base64 + content_type）
-        - ``at`` → 转为 ``@名称`` 文本
-        - ``reply`` → 仅提取 msg_id（见 _extract_reply_msg_id），不拼入正文
-        - ``forward`` → 转为文本标记
-        - ``voice``、``file`` → 转为文本标记
-
         Args:
             raw_message: Host 消息段列表。
 
@@ -176,8 +172,7 @@ class QQBotOutboundCodec:
                 text_parts.append("[forward]")
 
             elif item_type == "reply":
-                # reply 段仅用于提取被引用消息 ID（见 _extract_reply_msg_id），
-                # 引用效果由 API 的 msg_id 参数体现，不应再把 [reply] 字样拼进正文。
+                # reply 段用于提取被引用消息 ID（见 _extract_reply_msg_id）
                 continue
 
             elif item_type == "voice":
@@ -194,8 +189,6 @@ class QQBotOutboundCodec:
     @staticmethod
     def _extract_reply_msg_id(raw_message: List[Dict[str, Any]]) -> str:
         """提取回复引用的目标消息 ID。
-
-        QQ Bot API 通过 ``msg_id`` 参数实现引用回复，而不是独立的 reply 段。
 
         Args:
             raw_message: Host 消息段列表。

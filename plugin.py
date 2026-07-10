@@ -1,10 +1,13 @@
-"""QQ Bot 官方机器人适配器插件。
+"""
+MaiBot-QQBot-Adapter - Main Program
 
 职责:
-1. 作为客户端连接 QQ Bot WebSocket 网关。
-2. 将入站事件 (C2C_MESSAGE_CREATE, GROUP_AT_MESSAGE_CREATE, GROUP_MESSAGE_CREATE)
-   转换为 Host 侧 MessageDict。
-3. 将 Host 出站消息转换为 QQ Bot REST API 调用并发送。
+1.作为客户端连接 QQ Bot WebSocket 网关。
+2.将入站事件 (C2C_MESSAGE_CREATE, GROUP_AT_MESSAGE_CREATE, GROUP_MESSAGE_CREATE)转换为 Host 侧 MessageDict。
+3.将 Host 出站消息转换为 QQ Bot REST API 调用并发送。
+
+Made BY Galeros
+
 """
 
 from __future__ import annotations
