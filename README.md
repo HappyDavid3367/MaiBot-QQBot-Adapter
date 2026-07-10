@@ -74,7 +74,6 @@ QQ 开放平台  ──WSS 事件推送──▶  QQBotTransportClient  ──�
 | `[chat]` | `private_list_type` | str | whitelist | 私聊名单模式（whitelist / blacklist） |
 | `[chat]` | `private_list` | list | [] | 私聊名单中的用户 openid 列表 |
 | `[chat]` | `ban_user_id` | list | [] | 全局屏蔽的用户 openid 列表 |
-| `[chat]` | `ban_qq_bot` | bool | false | 是否屏蔽 QQ 官方机器人消息 |
 
 ### 如何获取 AppID / AppSecret
 

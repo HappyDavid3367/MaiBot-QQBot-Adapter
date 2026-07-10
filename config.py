@@ -510,23 +510,6 @@ class QQBotChatConfig(PluginConfigBase):
             "placeholder": "请输入用户 openid",
         },
     )
-    ban_qq_bot: bool = Field(
-        default=False,
-        description="是否屏蔽 QQ 官方机器人消息。",
-        json_schema_extra={
-            "hint": "开启后会忽略来自 QQ 官方机器人或频道机器人的消息。",
-            "i18n": _schema_i18n(
-                label_en="Block official bots",
-                label_ja="公式 Bot をブロック",
-                label_ko="공식 봇 차단",
-                hint_en="When enabled, messages from QQ official bots or channel bots are ignored.",
-                hint_ja="有効にすると、QQ 公式 Bot またはチャンネル Bot からのメッセージを無視します。",
-                hint_ko="활성화하면 QQ 공식 봇 또는 채널 봇의 메시지를 무시합니다.",
-            ),
-            "label": "屏蔽官方机器人",
-            "order": 7,
-        },
-    )
 
     @field_validator("group_list_type", "private_list_type", mode="before")
     @classmethod
