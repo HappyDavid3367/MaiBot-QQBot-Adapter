@@ -29,7 +29,7 @@ git clone https://github.com/mayan613/MaiBot-QQBot-Adapter.git
 | QQ 机器人应用 | — | 在 [q.qq.com](https://q.qq.com) 创建，获取 AppID / AppSecret |
 | MaiBot | ≥ 1.0.0 | 插件宿主 |
 
-与 NapCat（第三方、走真实 QQ 号）不同，本插件走 **QQ 官方开放平台**，使用 **AppID + AppSecret** 鉴权、**openid** 身份体系，无需登录 QQ 客户端，也无需 Node.js 等额外运行时。
+与 NapCat等适配器不同，本插件走 **QQ 官方开放平台**，使用 **AppID + AppSecret** 鉴权、**openid** 身份体系。
 
 
 ## 架构
