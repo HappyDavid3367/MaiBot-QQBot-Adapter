@@ -23,6 +23,7 @@ from .config import QQBotPluginSettings
 from .constants import QQBOT_GATEWAY_NAME
 from .deduplicator import QQBotMessageDeduplicator
 from .filters import QQBotChatFilter
+from .passive_context import QQBotPassiveContext
 from .runtime_state import QQBotRuntimeStateManager
 from .transport import QQBotTransportClient
 
@@ -49,6 +50,7 @@ class QQBotAdapterPlugin(MaiBotPlugin):
         self._outbound_codec: Optional[QQBotOutboundCodec] = None
         self._deduplicator: Optional[QQBotMessageDeduplicator] = None
         self._chat_filter: Optional[QQBotChatFilter] = None
+        self._passive_context: Optional[QQBotPassiveContext] = None
         self._runtime_state: Optional[QQBotRuntimeStateManager] = None
 
     # -- 生命周期 --
@@ -118,6 +120,10 @@ class QQBotAdapterPlugin(MaiBotPlugin):
         except ValueError as exc:
             return {"success": False, "error": str(exc)}
 
+        # 被动回复上下文：自发消息（无 reply 段）回落到会话最近 msg_id，
+        # 否则会被 QQ 判定为主动消息而无权限（40034105）。
+        self._resolve_passive_reply(action_name, params)
+
         try:
             if action_name == QQBotOutboundCodec.ACTION_POST_C2C:
                 response = await transport.post_c2c_message(
@@ -125,6 +131,7 @@ class QQBotAdapterPlugin(MaiBotPlugin):
                     content=params.get("content", ""),
                     msg_type=params.get("msg_type", 0),
                     msg_id=params.get("msg_id", ""),
+                    msg_seq=params.get("msg_seq", 0),
                 )
             elif action_name == QQBotOutboundCodec.ACTION_POST_GROUP:
                 response = await transport.post_group_message(
@@ -132,6 +139,7 @@ class QQBotAdapterPlugin(MaiBotPlugin):
                     content=params.get("content", ""),
                     msg_type=params.get("msg_type", 0),
                     msg_id=params.get("msg_id", ""),
+                    msg_seq=params.get("msg_seq", 0),
                 )
             elif action_name == QQBotOutboundCodec.ACTION_UPLOAD_AND_SEND_C2C:
                 response = await self._upload_and_send(
@@ -162,6 +170,37 @@ class QQBotAdapterPlugin(MaiBotPlugin):
             "success": True,
             "external_message_id": external_message_id or None,
         }
+
+    def _resolve_passive_reply(self, action_name: str, params: Dict[str, Any]) -> None:
+        """为出站消息注入被动回复 msg_id 与 msg_seq。
+
+        自发消息不带 reply 段时，回落到会话缓存的最近用户 msg_id，避免被 QQ 判定
+        为主动消息（40034105）。同一 msg_id 多次回复时递增 msg_seq 防重复。
+
+        Args:
+            action_name: 出站动作名称。
+            params: 出站参数字典（原地更新 msg_id / msg_seq）。
+        """
+        passive = self._passive_context
+        if passive is None:
+            return
+
+        is_group = action_name in (
+            QQBotOutboundCodec.ACTION_POST_GROUP,
+            QQBotOutboundCodec.ACTION_UPLOAD_AND_SEND_GROUP,
+        )
+        conv_key = str(
+            (params.get("group_openid") if is_group else params.get("openid")) or ""
+        ).strip()
+        if not conv_key:
+            return
+
+        explicit = str(params.get("msg_id") or "").strip()
+        msg_id, msg_seq = passive.acquire(
+            conv_key, prefer_msg_id=explicit, is_group=is_group,
+        )
+        params["msg_id"] = msg_id or ""
+        params["msg_seq"] = msg_seq
 
     async def _upload_and_send(
         self,
@@ -218,6 +257,7 @@ class QQBotAdapterPlugin(MaiBotPlugin):
 
         content = str(params.get("content") or "").strip()
         msg_id = str(params.get("msg_id") or "").strip()
+        msg_seq = int(params.get("msg_seq", 0) or 0)
 
         if is_group:
             return await transport.post_group_message(
@@ -226,6 +266,7 @@ class QQBotAdapterPlugin(MaiBotPlugin):
                 msg_type=7,
                 media={"file_info": file_info},
                 msg_id=msg_id,
+                msg_seq=msg_seq,
             )
         return await transport.post_c2c_message(
             openid=target_openid,
@@ -233,6 +274,7 @@ class QQBotAdapterPlugin(MaiBotPlugin):
             msg_type=7,
             media={"file_info": file_info},
             msg_id=msg_id,
+            msg_seq=msg_seq,
         )
 
     # -- 入站 Dispatch 回调 --
@@ -279,6 +321,13 @@ class QQBotAdapterPlugin(MaiBotPlugin):
             self.ctx.logger.debug("QQ Bot 重复消息已丢弃: msg_id=%s, seq=%s", msg_id, msg_seq)
             return
 
+        # 记录被动回复上下文：出站自发消息将回落到该 msg_id。
+        passive = self._passive_context
+        if passive is not None:
+            is_group_event = event_type.startswith("GROUP")
+            conv_key = group_openid if is_group_event else user_openid
+            passive.record(conv_key, msg_id, is_group_event)
+
         # 3. 聊天名单过滤
         sender_id = str(author.get("member_openid") or user_openid).strip()
         if not chat_filter.is_inbound_chat_allowed(sender_id, group_openid, settings.chat):
@@ -322,6 +371,10 @@ class QQBotAdapterPlugin(MaiBotPlugin):
         if deduplicator is not None:
             deduplicator.clear()
 
+        passive = self._passive_context
+        if passive is not None:
+            passive.clear()
+
     # -- 连接管理 --
 
     def _load_settings(self) -> QQBotPluginSettings:
@@ -353,6 +406,7 @@ class QQBotAdapterPlugin(MaiBotPlugin):
         self._outbound_codec = QQBotOutboundCodec()
         self._deduplicator = QQBotMessageDeduplicator()
         self._chat_filter = QQBotChatFilter(self.ctx.logger)
+        self._passive_context = QQBotPassiveContext()
         self._runtime_state = QQBotRuntimeStateManager(
             self.ctx.gateway, self.ctx.logger, QQBOT_GATEWAY_NAME,
         )
